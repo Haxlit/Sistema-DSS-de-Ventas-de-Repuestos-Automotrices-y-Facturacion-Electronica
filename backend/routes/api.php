@@ -1,8 +1,11 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\ProductCategoryController;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// Registra la ruta de productos (y las demás si ya tienes sus controladores)
+Route::apiResource('products', ProductController::class);
+Route::apiResource('brands', BrandController::class);
+Route::apiResource('categories', ProductCategoryController::class);
