@@ -10,6 +10,42 @@
 | Luis Fernando Arias Segovia |
 
 ---
+## 🛠️ Tecnologías Utilizadas
+
+| Categoría | Tecnología | Descripción |
+|---|---|---|
+| **Backend** | Laravel 11 | Framework PHP para la API REST, lógica de negocio y motor DSS |
+| **Frontend** | React + Vite | Biblioteca JavaScript para la interfaz de usuario y el dashboard interactivo |
+| **Base de Datos** | MariaDB | Sistema gestor de base de datos relacional (esquema híbrido HTAP) |
+| **Control de Versiones** | GitHub | Repositorio del proyecto, tablero Kanban y gestión de Issues |
+
+### Detalle por capa
+
+**Backend — Laravel 11**
+- API REST con controladores y rutas en `routes/api.php`
+- Autenticación con **Laravel Sanctum** (tokens JWT)
+- Middleware `CheckRole` para control de acceso por roles (RBAC)
+- Servicio `DSSAnalyzer` para el motor analítico matricial
+- `DB::transaction()` para garantizar integridad en el registro de ventas
+- Triggers en base de datos para inmutabilidad de precios históricos
+
+**Frontend — React + Vite**
+- Componentes: `<DashboardPage>`, `<KPICards>`, `<StarHusoMatrix>`, `<InvoiceStatusChart>`
+- `AxiosClient` como capa HTTP con interceptor para manejo de tokens expirados
+- **ApexCharts** (`react-apexcharts`) para gráficos: scatter plot matricial y gráfico de dona
+
+**Base de Datos — MariaDB**
+- Esquema híbrido transaccional-analítico (HTAP)
+- Índices optimizados sobre `created_at`, `invoice_status`, `sku`, `product_id`
+- Vistas analíticas: `v_product_dss_metrics`, `v_sales_invoice_summary`, `v_dss_kpis_general`
+- 4 triggers para control de stock, subtotales y totales automáticos
+
+**Control de Versiones — GitHub**
+- Repositorio con ramas por funcionalidad
+- GitHub Projects como tablero Kanban (columnas: Backlog → Ready → In Progress → Done)
+- Issues vinculados a cada Historia de Usuario
+
+---
 
 ## 📋 Índice
 
