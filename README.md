@@ -758,5 +758,65 @@ El proyecto cumple la Definition of Ready cuando:
 - Al menos **HU-01** puede moverse de `'Ready'` a `'In Progress'` sin requerir información adicional de ningún tipo.
 
 ---
+## ✅ Definition of Done (DoD)
 
-*Universidad Privada Domingo Savio — Sistemas de Información II — 2025*
+Una Historia de Usuario se considera **TERMINADA** únicamente cuando cumple
+**TODOS** los siguientes criterios:
+
+| Criterio | Descripción |
+|---|---|
+| **Linter** | El código no presenta errores de formato ni de estilo según la herramienta de linting configurada |
+| **Pruebas** | La funcionalidad fue probada en el entorno de integración y pasa todas las pruebas unitarias/integración |
+| **UML** | El diagrama de secuencia correspondiente ha sido actualizado y subido a la carpeta `/docs` |
+| **Revisión de par** | El código fue aprobado por al menos un compañero mediante Pull Request en GitHub |
+| **Criterios de aceptación** | Cumple el 100% de los criterios de aceptación definidos en la Historia de Usuario |
+| **Documentación** | El README y la documentación técnica están actualizados con los cambios realizados |
+
+> ⚠️ Una HU que no cumpla el 100% de estos criterios **no puede moverse a la columna Done**
+> del tablero Kanban, sin excepciones.
+
+---
+
+## 🔄 Flujo de Trabajo del Squad
+
+### Ramas (GitFlow)
+
+| Rama | Propósito |
+|---|---|
+| `main` | Producción. Solo recibe merges aprobados desde `develop` |
+| `develop` | Integración. Base para todas las features del equipo |
+| `feature/HU-XX` | Desarrollo de cada Historia de Usuario |
+
+### Conventional Commits
+
+```text
+tipo: descripción breve del cambio
+```
+
+| Tipo | Uso |
+|---|---|
+| `feat` | Nueva funcionalidad — `feat: agrega endpoint de login` |
+| `fix` | Corrección de error — `fix: corrige validación de formulario` |
+| `docs` | Documentación — `docs: actualiza README con DoD` |
+| `style` | Formato sin afectar lógica — `style: aplica linter` |
+| `refactor` | Reestructura código sin cambiar comportamiento |
+| `test` | Añade o modifica pruebas |
+
+### Flujo de Pull Requests
+
+1. Nadie sube código directamente a `develop` o `main`
+2. Todo desarrollo se realiza en una rama `feature/HU-XX` creada desde `develop`
+3. Al finalizar, se abre un **Pull Request** hacia `develop` describiendo los cambios
+4. Al menos **un compañero del Squad** debe revisar y aprobar el PR antes del merge
+5. El reviewer verifica: funcionalidad, estilo de código y cumplimiento de la DoD
+
+### Daily Scrum
+
+| Campo | Detalle |
+|---|---|
+| **Horario** | Lunes a Viernes — 19:00 p.m. a 22:00 p.m.|
+| **Canal** | Discord |
+| **Formato** | ¿Qué hice ayer? · ¿Qué haré hoy? · ¿Tengo algún impedimento? |
+---
+
+*Universidad Privada Domingo Savio — Sistemas de Información II — 2026*
