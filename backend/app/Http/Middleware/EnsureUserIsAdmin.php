@@ -28,7 +28,7 @@ class EnsureUserIsAdmin
 
         if (!$user || !$user->hasAccessToDSS()) {
             return response()->json([
-                'status' => 'error',
+                'estado' => 'error',
                 'message' => 'No tiene permisos para acceder al módulo DSS.',
             ], 403);
         }

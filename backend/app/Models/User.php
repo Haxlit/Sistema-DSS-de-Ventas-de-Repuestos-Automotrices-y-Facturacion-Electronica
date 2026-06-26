@@ -24,7 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',     // 👈 3. ASEGÚRATE DE AGREGAR EL CAMPO DE ROL QUE USE TU BASE DE DATOS (ej: 'role', 'tipo', etc.)
-        'status',   // 👈 4. Y EL ESTADO PARA COMPROBAR SI ESTÁ ACTIVO/INACTIVO
+        'estado',   // 👈 4. Y EL ESTADO PARA COMPROBAR SI ESTÁ ACTIVO/INACTIVO
     ];
 
     /**

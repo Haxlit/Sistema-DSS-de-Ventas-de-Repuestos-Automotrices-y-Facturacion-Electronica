@@ -22,7 +22,7 @@ class DashboardController extends Controller
     public function index(Request $request): JsonResponse
     {
         return response()->json([
-            'status' => 'success',
+            'estado' => 'success',
             'message' => 'Acceso al módulo DSS confirmado.',
             'data' => [
                 'user' => [
