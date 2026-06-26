@@ -7,11 +7,12 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens; // 👈 1. AGREGAMOS ESTE IMPORT
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable; // 👈 2. AGREGAMOS EL TRAIT AQUÍ
 
     /**
      * The attributes that are mass assignable.
@@ -22,6 +23,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',     // 👈 3. ASEGÚRATE DE AGREGAR EL CAMPO DE ROL QUE USE TU BASE DE DATOS (ej: 'role', 'tipo', etc.)
+        'status',   // 👈 4. Y EL ESTADO PARA COMPROBAR SI ESTÁ ACTIVO/INACTIVO
     ];
 
     /**
@@ -46,4 +49,11 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function hasAccessToDSS(): bool
+    {
+        return $this->role === 'admin'
+            && $this->estado == 1;
+    }
 }
+
