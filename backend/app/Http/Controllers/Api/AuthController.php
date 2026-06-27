@@ -1,79 +1,107 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Models;
 
-use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
-use App\Http\Requests\LoginRequest;
-use App\Models\User;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
 
 /**
- * HU-02: Inicio de sesión con token JWT
+ * HU-01 / HU-02 / HU-03
  *
- * IMPORTANTE PARA EL MERGE:
- * Este archivo AGREGA los métodos login() y logout() al AuthController
- * que la Persona 1 ya creó en HU-01 (con el método register()).
- * No reemplazar el archivo completo: copiar únicamente los métodos
- * login() y logout() dentro de la clase AuthController existente.
- *
- * Endpoints:
- *   POST /api/auth/login
- *   POST /api/auth/logout  (requiere middleware auth:sanctum)
+ * Entidad User — Capa de Seguridad y Acceso (RBAC).
+ * Métodos de negocio según el Diagrama de Clases UML (Etapa B, Sección 4.1):
+ * - isAdmin()
+ * - hasAccessToDSS()
+ * - getSales()
+ * - getFullName()
  */
-class AuthController extends Controller
+class User extends Authenticatable
 {
+    /** @use HasFactory<\Database\Factories\UserFactory> */
+    use HasApiTokens, HasFactory, Notifiable;
+
     /**
-     * Inicia sesión y devuelve un token de acceso (Laravel Sanctum).
-     *
-     * Criterios de Aceptación HU-02:
-     *  - Credenciales válidas -> token + datos básicos del usuario (id, name, role).
-     *  - Credenciales inválidas -> HTTP 401 sin revelar cuál campo fue incorrecto.
-     *  - El token se envía como Bearer y se gestiona vía Sanctum (expiración
-     *    configurable en config/sanctum.php -> 'expiration').
+     * Atributos asignables en masa.
      */
-    public function login(LoginRequest $request): JsonResponse
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'role',
+    ];
+
+    /**
+     * Atributos ocultos en las respuestas JSON.
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
+     * Casts de atributos.
+     */
+    protected function casts(): array
     {
-        $credentials = $request->validated();
-
-        $user = User::activos()->where('email', $credentials['email'])->first();
-
-        if (! $user || ! Auth::validate($credentials)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Las credenciales proporcionadas son incorrectas.',
-            ], 401);
-        }
-
-        // Revoca tokens previos del mismo dispositivo lógico (opcional, simplifica pruebas)
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Inicio de sesión exitoso.',
-            'data' => [
-                'token' => $token,
-                'token_type' => 'Bearer',
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'role' => $user->role,
-                ],
-            ],
-        ], 200);
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'estado' => 'boolean',
+        ];
     }
 
     /**
-     * Cierra la sesión revocando el token actual.
+     * Relación: un usuario (vendedor) registra 0..* ventas.
+     * Se deja declarada para HU-07 (Registro de venta), que es quien la consume.
      */
-    public function logout(Request $request): JsonResponse
+    public function sales()
     {
-        $request->user()->currentAccessToken()->delete();
+        return $this->hasMany(Sale::class);
+    }
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Sesión cerrada correctamente.',
-        ], 200);
+    /**
+     * Alias de negocio sobre la relación sales(), tal como se define
+     * en el diagrama de clases: + getSales() : List<Sale>
+     */
+    public function getSales()
+    {
+        return $this->sales;
+    }
+
+    /**
+     * + isAdmin() : boolean
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    /**
+     * + hasAccessToDSS() : boolean
+     * Regla de negocio central de HU-03: solo el rol 'admin' tiene
+     * acceso al módulo analítico DSS / Dashboard.
+     */
+    public function hasAccessToDSS(): bool
+    {
+        return $this->isAdmin() && $this->estado === true;
+    }
+
+    /**
+     * + getFullName() : String
+     */
+    public function getFullName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * Scope de conveniencia: solo usuarios activos (estado = true).
+     * Usado por HU-02 (login) para impedir el acceso de cuentas inactivas.
+     */
+    public function scopeActivos($query)
+    {
+        return $query->where('estado', true);
     }
 }
