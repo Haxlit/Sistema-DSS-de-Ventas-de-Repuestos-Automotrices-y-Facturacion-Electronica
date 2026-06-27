@@ -24,8 +24,6 @@ class User extends Authenticatable
 
     /**
      * Atributos asignables en masa.
-     * NOTA: 'estado' se gestiona explícitamente, no se expone a mass-assignment
-     * desde el registro público (ver RegisterUserRequest / AuthController).
      */
     protected $fillable = [
         'name',
@@ -83,7 +81,7 @@ class User extends Authenticatable
     /**
      * + hasAccessToDSS() : boolean
      * Regla de negocio central de HU-03: solo el rol 'admin' tiene
-     * acceso al módulo analítico DSS / Dashboard y debe estar activo.
+     * acceso al módulo analítico DSS / Dashboard.
      */
     public function hasAccessToDSS(): bool
     {
@@ -92,9 +90,6 @@ class User extends Authenticatable
 
     /**
      * + getFullName() : String
-     * Por ahora 'name' almacena el nombre completo (ver tabla users),
-     * se deja el método para no romper el contrato del diagrama de clases
-     * si en el futuro se separan nombre/apellido.
      */
     public function getFullName(): string
     {
