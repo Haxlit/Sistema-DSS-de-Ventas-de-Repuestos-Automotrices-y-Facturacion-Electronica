@@ -4,21 +4,22 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
 
 /**
  * HU-01 / HU-02 / HU-03
  *
  * Entidad User — Capa de Seguridad y Acceso (RBAC).
  * Métodos de negocio según el Diagrama de Clases UML (Etapa B, Sección 4.1):
- *   - isAdmin()
- *   - hasAccessToDSS()
- *   - getSales()
- *   - getFullName()
+ * - isAdmin()
+ * - hasAccessToDSS()
+ * - getSales()
+ * - getFullName()
  */
 class User extends Authenticatable
 {
+    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
@@ -101,7 +102,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Scope de conveniencia: solo usuarios activos (estado = 1).
+     * Scope de conveniencia: solo usuarios activos (estado = true).
      * Usado por HU-02 (login) para impedir el acceso de cuentas inactivas.
      */
     public function scopeActivos($query)

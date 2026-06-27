@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -28,8 +29,10 @@ return new class extends Migration
             $table->index(['created_at', 'invoice_status'], 'idx_sales_date_status');
         });
 
-        DB::statement('ALTER TABLE sales ADD CONSTRAINT chk_sales_total_positive CHECK (total_amount >= 0)');
-        DB::statement('ALTER TABLE sales ADD CONSTRAINT chk_sales_hash_length CHECK (invoice_xml_hash IS NULL OR CHAR_LENGTH(invoice_xml_hash) = 64)');
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE sales ADD CONSTRAINT chk_sales_total_positive CHECK (total_amount >= 0)');
+            DB::statement('ALTER TABLE sales ADD CONSTRAINT chk_sales_hash_length CHECK (invoice_xml_hash IS NULL OR CHAR_LENGTH(invoice_xml_hash) = 64)');
+        }
     }
     /**
      * Reverse the migrations.

@@ -1,53 +1,107 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Models;
 
-use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\RegisterUserRequest;
-use App\Models\User;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
 
 /**
- * HU-01: Registro y autenticación de usuarios
+ * HU-01 / HU-02 / HU-03
  *
- * Endpoint: POST /api/register
- *
- * NOTA: el método login() de este mismo flujo de autenticación
- * se implementa en HU-02 (ver AuthController en esa rama / Issue).
- * Este controlador se deja abierto para que la Persona 2 agregue
- * el método login() sin generar conflictos de merge en otros archivos.
+ * Entidad User — Capa de Seguridad y Acceso (RBAC).
+ * Métodos de negocio según el Diagrama de Clases UML (Etapa B, Sección 4.1):
+ * - isAdmin()
+ * - hasAccessToDSS()
+ * - getSales()
+ * - getFullName()
  */
-class AuthController extends Controller
+class User extends Authenticatable
 {
+    /** @use HasFactory<\Database\Factories\UserFactory> */
+    use HasApiTokens, HasFactory, Notifiable;
+
     /**
-     * Registra un nuevo usuario del negocio (admin o vendedor).
-     *
-     * Criterios de Aceptación HU-01:
-     *  - email único, password con hash bcrypt.
-     *  - role por defecto 'vendedor' si no se especifica.
-     *  - nunca se devuelve ni se almacena la contraseña en texto plano.
+     * Atributos asignables en masa.
      */
-    public function register(RegisterUserRequest $request): JsonResponse
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'role',
+    ];
+
+    /**
+     * Atributos ocultos en las respuestas JSON.
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
+     * Casts de atributos.
+     */
+    protected function casts(): array
     {
-        $validated = $request->validated();
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'estado' => 'boolean',
+        ];
+    }
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?? 'vendedor',
-        ]);
+    /**
+     * Relación: un usuario (vendedor) registra 0..* ventas.
+     * Se deja declarada para HU-07 (Registro de venta), que es quien la consume.
+     */
+    public function sales()
+    {
+        return $this->hasMany(Sale::class);
+    }
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Usuario registrado correctamente.',
-            'data' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-            ],
-        ], 201);
+    /**
+     * Alias de negocio sobre la relación sales(), tal como se define
+     * en el diagrama de clases: + getSales() : List<Sale>
+     */
+    public function getSales()
+    {
+        return $this->sales;
+    }
+
+    /**
+     * + isAdmin() : boolean
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    /**
+     * + hasAccessToDSS() : boolean
+     * Regla de negocio central de HU-03: solo el rol 'admin' tiene
+     * acceso al módulo analítico DSS / Dashboard.
+     */
+    public function hasAccessToDSS(): bool
+    {
+        return $this->isAdmin() && $this->estado === true;
+    }
+
+    /**
+     * + getFullName() : String
+     */
+    public function getFullName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * Scope de conveniencia: solo usuarios activos (estado = true).
+     * Usado por HU-02 (login) para impedir el acceso de cuentas inactivas.
+     */
+    public function scopeActivos($query)
+    {
+        return $query->where('estado', true);
     }
 }
