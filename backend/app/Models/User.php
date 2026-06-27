@@ -83,7 +83,7 @@ class User extends Authenticatable
     /**
      * + hasAccessToDSS() : boolean
      * Regla de negocio central de HU-03: solo el rol 'admin' tiene
-     * acceso al módulo analítico DSS / Dashboard.
+     * acceso al módulo analítico DSS / Dashboard y debe estar activo.
      */
     public function hasAccessToDSS(): bool
     {
