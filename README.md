@@ -819,4 +819,10 @@ tipo: descripción breve del cambio
 | **Formato** | ¿Qué hice ayer? · ¿Qué haré hoy? · ¿Tengo algún impedimento? |
 ---
 
-*Universidad Privada Domingo Savio — Sistemas de Información II — 2026*
+## 🚀 Incremento del Sprint 1 (Módulo de Autenticación y Seguridad)
+Se han completado e integrado con éxito las **HU-01, HU-02 y HU-03**.
+
+### Endpoints Disponibles:
+* **POST** `/api/auth/register` - Registro de usuarios con hashing Bcrypt y validación de roles (`admin` | `vendedor`).
+* **POST** `/api/auth/login` - Inicio de sesión blindado (filtra solo cuentas con `estado = true` vía Local Scope).
+* **GET** `/api/products` - Ruta protegida por middleware `auth:sanctum` para validar el control de acceso RBAC.
