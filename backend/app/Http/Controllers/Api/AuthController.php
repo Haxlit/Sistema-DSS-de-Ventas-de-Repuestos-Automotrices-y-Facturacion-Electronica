@@ -1,107 +1,107 @@
 <?php
 
-namespace App\Models;
+namespace App\Http\Controllers\Api;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Notifications\Notifiable;
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
-/**
- * HU-01 / HU-02 / HU-03
- *
- * Entidad User — Capa de Seguridad y Acceso (RBAC).
- * Métodos de negocio según el Diagrama de Clases UML (Etapa B, Sección 4.1):
- * - isAdmin()
- * - hasAccessToDSS()
- * - getSales()
- * - getFullName()
- */
-class User extends Authenticatable
+class AuthController extends Controller
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
-
     /**
-     * Atributos asignables en masa.
+     * HU-01: Registro de Usuarios
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'role',
-    ];
-
-    /**
-     * Atributos ocultos en las respuestas JSON.
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
-    /**
-     * Casts de atributos.
-     */
-    protected function casts(): array
+    public function register(Request $request)
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'estado' => 'boolean',
-        ];
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'role' => 'nullable|string|in:admin,vendedor',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Error de validacion',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => $request->role ?? 'vendedor', // Rol por defecto si no se envía
+        ]);
+
+        // Generamos el token de acceso (Sanctum)
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Usuario registrado exitosamente',
+            'user' => $user,
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+        ], 201);
     }
 
     /**
-     * Relación: un usuario (vendedor) registra 0..* ventas.
-     * Se deja declarada para HU-07 (Registro de venta), que es quien la consume.
+     * HU-02: Inicio de Sesión (Login)
      */
-    public function sales()
+    public function login(Request $request)
     {
-        return $this->hasMany(Sale::class);
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email',
+            'password' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        // Buscamos el usuario asegurando que esté ACTIVO usando el scope de tu modelo
+        $user = User::activos()->where('email', $request->email)->first();
+
+        // Validamos credenciales y existencia del usuario
+        if (!$user || !Hash::make($request->password, ['fallback' => $user->password])) {
+            // Nota técnica: Laravel 11 maneja Hash::check automáticamente si pasas texto plano,
+            // pero si usas el método nativo es: Hash::check($request->password, $user->password)
+            if (!$user || !Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'message' => 'Credenciales invalidas o cuenta inactiva.'
+                ], 401);
+            }
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login correcto',
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->getFullName(),
+                'email' => $user->email,
+                'role' => $user->role,
+                'is_admin' => $user->isAdmin(),
+                'access_dss' => $user->hasAccessToDSS() // HU-03: Control de acceso al Dashboard
+            ]
+        ], 200);
     }
 
     /**
-     * Alias de negocio sobre la relación sales(), tal como se define
-     * en el diagrama de clases: + getSales() : List<Sale>
+     * Cierre de Sesión (Logout)
      */
-    public function getSales()
+    public function logout(Request $request)
     {
-        return $this->sales;
-    }
+        // Revoca el token con el que el usuario está autenticado actualmente
+        $request->user()->currentAccessToken()->delete();
 
-    /**
-     * + isAdmin() : boolean
-     */
-    public function isAdmin(): bool
-    {
-        return $this->role === 'admin';
-    }
-
-    /**
-     * + hasAccessToDSS() : boolean
-     * Regla de negocio central de HU-03: solo el rol 'admin' tiene
-     * acceso al módulo analítico DSS / Dashboard.
-     */
-    public function hasAccessToDSS(): bool
-    {
-        return $this->isAdmin() && $this->estado === true;
-    }
-
-    /**
-     * + getFullName() : String
-     */
-    public function getFullName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Scope de conveniencia: solo usuarios activos (estado = true).
-     * Usado por HU-02 (login) para impedir el acceso de cuentas inactivas.
-     */
-    public function scopeActivos($query)
-    {
-        return $query->where('estado', true);
+        return response()->json([
+            'message' => 'Sesión cerrada exitosamente'
+        ], 200);
     }
 }
