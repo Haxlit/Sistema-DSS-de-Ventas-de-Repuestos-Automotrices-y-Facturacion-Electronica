@@ -5,17 +5,6 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Laravel\Sanctum\Http\Middleware\AuthenticateSession;
 use Laravel\Sanctum\Sanctum;
 
-/**
- * HU-02: Inicio de sesión con token JWT
- *
- * Configuración estándar de Laravel Sanctum. Generada al ejecutar:
- *   composer require laravel/sanctum
- *   php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
- *
- * Punto relevante para el criterio de aceptación de expiración del token:
- *   'expiration' => 1440  (en minutos; 1440 = 24 horas)
- */
-
 return [
 
     /*
@@ -61,18 +50,7 @@ return [
     |
     */
 
-    /*
-    |--------------------------------------------------------------------------
-    | Expiration Minutes
-    |--------------------------------------------------------------------------
-    |
-    | HU-02 — Criterio de Aceptación: "El token expira según la
-    | configuración de Laravel Sanctum y debe renovarse al expirar."
-    | Se fija en 24 horas (1440 min) para el entorno de desarrollo del Sprint 1.
-    |
-    */
-
-    'expiration' => 1440,
+    'expiration' => null,
 
     /*
     |--------------------------------------------------------------------------
@@ -101,7 +79,6 @@ return [
     */
 
     'middleware' => [
-        'verify_csrf_token' => VerifyCsrfToken::class,
         'authenticate_session' => AuthenticateSession::class,
         'encrypt_cookies' => EncryptCookies::class,
         'validate_csrf_token' => ValidateCsrfToken::class,

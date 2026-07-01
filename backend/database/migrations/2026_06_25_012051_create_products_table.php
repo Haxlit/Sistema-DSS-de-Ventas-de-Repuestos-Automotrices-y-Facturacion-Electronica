@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -35,11 +34,9 @@ return new class extends Migration
         });
 
         // Restricciones CHECK nativas de MariaDB agregadas mediante Raw SQL
-        if (DB::getDriverName() !== 'sqlite') {
-            DB::statement('ALTER TABLE products ADD CONSTRAINT chk_products_price_positive CHECK (price > 0)');
-            DB::statement('ALTER TABLE products ADD CONSTRAINT chk_products_cost_positive CHECK (cost > 0)');
-            DB::statement('ALTER TABLE products ADD CONSTRAINT chk_products_margin_valid CHECK (price >= cost)');
-        }
+        DB::statement('ALTER TABLE products ADD CONSTRAINT chk_products_price_positive CHECK (price > 0)');
+        DB::statement('ALTER TABLE products ADD CONSTRAINT chk_products_cost_positive CHECK (cost > 0)');
+        DB::statement('ALTER TABLE products ADD CONSTRAINT chk_products_margin_valid CHECK (price >= cost)');
     }
 
     /**
