@@ -32,16 +32,21 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $request->role ?? 'vendedor', // Rol por defecto si no se envía
+            'password' => $request->password, // El cast 'hashed' en el modelo User se encarga del Hash automáticamente
+            'role' => $request->role ?? 'vendedor',
         ]);
 
-        // Generamos el token de acceso (Sanctum)
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Estructura envuelta en 'data' para cumplir con RegisterUserTest
         return response()->json([
             'message' => 'Usuario registrado exitosamente',
-            'user' => $user,
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
             'access_token' => $token,
             'token_type' => 'Bearer',
         ], 201);
@@ -61,33 +66,39 @@ class AuthController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        // Buscamos el usuario asegurando que esté ACTIVO usando el scope de tu modelo
-        $user = User::activos()->where('email', $request->email)->first();
+        // Buscamos el usuario por su email
+        $user = User::where('email', $request->email)->first();
 
-        // Validamos credenciales y existencia del usuario
-        if (!$user || !Hash::make($request->password, ['fallback' => $user->password])) {
-            // Nota técnica: Laravel 11 maneja Hash::check automáticamente si pasas texto plano,
-            // pero si usas el método nativo es: Hash::check($request->password, $user->password)
-            if (!$user || !Hash::check($request->password, $user->password)) {
-                return response()->json([
-                    'message' => 'Credenciales invalidas o cuenta inactiva.'
-                ], 401);
-            }
+        // Si el usuario no existe o la contraseña no coincide
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Las credenciales proporcionadas son incorrectas.' // Mensaje exacto esperado por el test
+            ], 401);
+        }
+
+        // Regla de negocio: Impedir login si el usuario está inactivo (estado = false)
+        if ($user->estado === false) {
+            return response()->json([
+                'message' => 'Cuenta inactiva.'
+            ], 401);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Estructura unificada bajo 'data' tal como lo valida LoginTest.php:34
         return response()->json([
             'message' => 'Login correcto',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->getFullName(),
-                'email' => $user->email,
-                'role' => $user->role,
-                'is_admin' => $user->isAdmin(),
-                'access_dss' => $user->hasAccessToDSS() // HU-03: Control de acceso al Dashboard
+            'data' => [
+                'token' => $token,
+                'token_type' => 'Bearer',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->getFullName(),
+                    'role' => $user->role,
+                    'email' => $user->email,
+                    'is_admin' => $user->isAdmin(),
+                    'access_dss' => $user->hasAccessToDSS()
+                ]
             ]
         ], 200);
     }
@@ -97,7 +108,6 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        // Revoca el token con el que el usuario está autenticado actualmente
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
