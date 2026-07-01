@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -28,12 +27,10 @@ return new class extends Migration
             $table->index(['product_id', 'created_at'], 'idx_sale_details_product_date');
         });
 
-        if (DB::getDriverName() !== 'sqlite') {
-            DB::statement('ALTER TABLE sale_details ADD CONSTRAINT chk_sale_details_quantity_positive CHECK (quantity > 0)');
-            DB::statement('ALTER TABLE sale_details ADD CONSTRAINT chk_sale_details_unit_price_positive CHECK (unit_price > 0)');
-            DB::statement('ALTER TABLE sale_details ADD CONSTRAINT chk_sale_details_unit_cost_positive CHECK (unit_cost > 0)');
-            DB::statement('ALTER TABLE sale_details ADD CONSTRAINT chk_sale_details_subtotal_consistent CHECK (ABS(subtotal - (quantity * unit_price)) < 0.01)');
-        }
+        DB::statement('ALTER TABLE sale_details ADD CONSTRAINT chk_sale_details_quantity_positive CHECK (quantity > 0)');
+        DB::statement('ALTER TABLE sale_details ADD CONSTRAINT chk_sale_details_unit_price_positive CHECK (unit_price > 0)');
+        DB::statement('ALTER TABLE sale_details ADD CONSTRAINT chk_sale_details_unit_cost_positive CHECK (unit_cost > 0)');
+        DB::statement('ALTER TABLE sale_details ADD CONSTRAINT chk_sale_details_subtotal_consistent CHECK (ABS(subtotal - (quantity * unit_price)) < 0.01)');
     }
     /**
      * Reverse the migrations.

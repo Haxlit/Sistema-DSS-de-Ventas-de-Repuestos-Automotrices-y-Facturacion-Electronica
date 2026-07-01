@@ -38,12 +38,4 @@ class Product extends Model
     {
         return $this->belongsTo(ProductCategory::class, 'category_id');
     }
-    /**
-     * Scope para filtrar solo los productos que están activos (para el flujo de ventas)
-    * Uso: Product::activos()->get();
-    */
-    public function scopeActivos($query)
-    {
-        return $query->where('estado', true);
-    }
 }
