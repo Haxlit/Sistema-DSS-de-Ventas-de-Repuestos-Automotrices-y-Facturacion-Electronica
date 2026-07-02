@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\ProductCategoryController;
 
@@ -29,6 +30,18 @@ Route::prefix('auth')->group(function () {
 | Todo el catálogo y gestión requiere sesión (vendedor o admin).
 */
 Route::middleware('auth:sanctum')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ruta de Búsqueda de Catálogo — HU-06
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANTE PARA EL MERGE:
+    | Agregar esta línea dentro del MISMO grupo middleware('auth:sanctum')
+    | que ya crearon HU-04/HU-05 para /products, junto a store/update/destroy.
+    |
+    */
+    Route::get('/products', [ProductController::class, 'index']);
 
     // Rutas específicas de productos protegidas
     Route::post('/products', [ProductController::class, 'store']);
@@ -61,6 +74,19 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 Route::apiResource('brands', BrandController::class);
 Route::apiResource('categories', ProductCategoryController::class);
 
+/*
+|--------------------------------------------------------------------------
+| Ruta de Ventas — HU-07
+|--------------------------------------------------------------------------
+|
+| IMPORTANTE PARA EL MERGE:
+| Agregar dentro del grupo middleware('auth:sanctum') existente en
+| routes/api.php, junto a las rutas de /products.
+|
+*/
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/sales', [SaleController::class, 'store']);
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -72,7 +98,6 @@ Route::apiResource('categories', ProductCategoryController::class);
 | routes/api.php, junto a las rutas de /products y /sales.
 |
 */
-
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sales/{sale}/issue-invoice', [InvoiceController::class, 'issue']);
     Route::get('/invoices/summary', [InvoiceController::class, 'summary']);

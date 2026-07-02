@@ -11,10 +11,30 @@ class ProductController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with(['brand', 'category'])->get();
-        return response()->json($products, 200);
+        $query = Product::with(['brand', 'category']);
+
+        // HU-06: Buscar por SKU exacto (parámetro ?q=)
+        if ($request->filled('q')) {
+            $query->where('sku', $request->input('q'));
+        }
+
+        // HU-06: Filtrar por marca (?brand_id=)
+        if ($request->filled('brand_id')) {
+            $query->where('brand_id', $request->input('brand_id'));
+        }
+
+        // HU-06: Excluir productos dados de baja por defecto (estado = false/0)
+        // El test "excluye productos dados de baja por defecto" espera solo los activos
+        $query->where('estado', '!=', false);
+
+        $products = $query->get();
+
+        // Devolver envuelto en la estructura 'data' para solucionar el TypeError del test
+        return response()->json([
+            'data' => $products
+        ], 200);
     }
 
     /**
@@ -38,7 +58,7 @@ class ProductController extends Controller
         ]);
 
         $product = Product::create($validated);
-        
+
         // Calcular el margen de contribución que exige el test (price - cost)
         $margin = $product->price - $product->cost;
 
@@ -98,7 +118,7 @@ class ProductController extends Controller
         if ($request->has('cost') || $request->has('price')) {
             $nuevoPrecio = $request->input('price', $product->price);
             $nuevoCosto = $request->input('cost', $product->cost);
-            
+
             if ($nuevoCosto >= $nuevoPrecio) {
                 return response()->json([
                     'message' => 'Error de validación',
