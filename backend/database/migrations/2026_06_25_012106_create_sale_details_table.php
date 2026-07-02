@@ -5,8 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -20,7 +19,7 @@ return new class extends Migration
             $table->decimal('unit_price', 10, 2);
             $table->decimal('unit_cost', 10, 2);
             $table->decimal('subtotal', 12, 2);
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamps();
 
             // Índices
             $table->index('sale_id', 'idx_sale_details_sale_id');
