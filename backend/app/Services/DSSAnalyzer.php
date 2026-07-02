@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\Sale;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -10,10 +11,17 @@ use Illuminate\Support\Facades\DB;
 /**
  * HU-10: Cálculo de tasa de rotación y margen por producto
  * HU-11: Clasificación matricial Estrella / Hueso
+ * HU-12: Dashboard interactivo con KPIs generales
  *
  * Motor analítico DSS — equivale a la clase "DSSAnalyzer" del Diagrama
  * de Clases (Etapa B) y a la QUERY 3 del Diagrama de Secuencia
  * (agregación de sale_details y sales por producto).
+ *
+ * ⚠️ IMPORTANTE PARA EL MERGE:
+ * Este archivo REEMPLAZA el DSSAnalyzer.php de HU-11. Todo lo de HU-10
+ * y HU-11 se mantiene EXACTAMENTE igual; lo único nuevo es la sección
+ * "HU-12" (buildDashboardData). Esta es la versión final del servicio
+ * para el Sprint de Motor DSS / Dashboard.
  *
  * Cuadrantes de clasificación (HU-11):
  *   ESTRELLA     -> rotación alta + margen alto
@@ -187,7 +195,7 @@ class DSSAnalyzer
             $quadrants[$row['quadrant']][] = $row;
         }
 
-        $score = fn (array $r) => $r['rotation_rate'] + $r['margin_rate'];
+        $score = fn(array $r) => $r['rotation_rate'] + $r['margin_rate'];
 
         $topStar = collect($quadrants[self::ESTRELLA])
             ->sortByDesc($score)
@@ -206,6 +214,68 @@ class DSSAnalyzer
             'top_star' => $topStar,
             'critical_huso' => $criticalHuso,
             'total_classified' => $stats->count(),
+        ];
+    }
+
+    /* ------------------------------------------------------------------
+     | HU-12: Dashboard interactivo con KPIs generales
+     | ------------------------------------------------------------------ */
+
+    /**
+     * Payload único consumido por GET /api/dashboard (DashboardController).
+     *
+     * Criterio de Aceptación HU-12: responde con kpis, matrix, top_star,
+     * critical_huso e invoice_summary en un único payload JSON.
+     */
+    public function buildDashboardData(Carbon $start, Carbon $end): array
+    {
+        $matrix = $this->buildStarHusoMatrix($start, $end);
+
+        return [
+            'range' => [
+                'start' => $start->toDateString(),
+                'end' => $end->toDateString(),
+            ],
+            'kpis' => $this->buildKpis($start, $end),
+            'matrix' => $matrix['quadrants'],
+            'top_star' => $matrix['top_star'],
+            'critical_huso' => $matrix['critical_huso'],
+            'invoice_summary' => $this->buildInvoiceSummary($start, $end),
+        ];
+    }
+
+    /**
+     * kpis.total_revenue, kpis.total_sales, kpis.active_products
+     * (consumidos por <KPICards> en el frontend, HU-12).
+     */
+    private function buildKpis(Carbon $start, Carbon $end): array
+    {
+        $sales = Sale::enRango($start, $end)->get(['id', 'total_amount']);
+
+        return [
+            'total_revenue' => round((float) $sales->sum('total_amount'), 2),
+            'total_sales' => $sales->count(),
+            'active_products' => Product::activos()->count(),
+        ];
+    }
+
+    /**
+     * Reutiliza la misma agrupación por invoice_status que HU-09
+     * (InvoiceController::summary) para que el Dashboard sea
+     * consistente con GET /api/invoices/summary, sin modificar ese
+     * controlador ni el modelo Sale.
+     */
+    private function buildInvoiceSummary(Carbon $start, Carbon $end): array
+    {
+        $counts = Sale::enRango($start, $end)
+            ->selectRaw('invoice_status, COUNT(*) as total')
+            ->groupBy('invoice_status')
+            ->pluck('total', 'invoice_status');
+
+        return [
+            'issued' => (int) ($counts['issued'] ?? 0),
+            'pending' => (int) ($counts['pending'] ?? 0),
+            'error' => (int) ($counts['error'] ?? 0),
         ];
     }
 
