@@ -9,18 +9,28 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * HU-10: Cálculo de tasa de rotación y margen por producto
+ * HU-11: Clasificación matricial Estrella / Hueso
  *
  * Motor analítico DSS — equivale a la clase "DSSAnalyzer" del Diagrama
  * de Clases (Etapa B) y a la QUERY 3 del Diagrama de Secuencia
  * (agregación de sale_details y sales por producto).
  *
- * ⚠️ NOTA PARA EL MERGE (HU-11 / HU-12):
- * Esta es la primera rebanada del servicio. HU-11 EXTIENDE este mismo
- * archivo agregando classifyProduct() y buildStarHusoMatrix(); HU-12
- * agrega buildDashboardData(). No se debe crear una segunda clase.
+ * Cuadrantes de clasificación (HU-11):
+ *   ESTRELLA     -> rotación alta + margen alto
+ *   VACA         -> rotación alta + margen bajo
+ *   INTERROGANTE -> rotación baja + margen alto
+ *   HUESO        -> rotación baja + margen bajo
  */
 class DSSAnalyzer
 {
+    public const ESTRELLA = 'ESTRELLA';
+
+    public const VACA = 'VACA';
+
+    public const INTERROGANTE = 'INTERROGANTE';
+
+    public const HUESO = 'HUESO';
+
     private float $rotationThreshold;
 
     private float $marginThreshold;
@@ -37,13 +47,13 @@ class DSSAnalyzer
         $this->rankingSize = $rankingSize ?? (int) config('dss.ranking_size');
     }
 
+    /* ------------------------------------------------------------------
+     | HU-10: Cálculo de tasa de rotación y margen por producto
+     | (sin cambios respecto a la entrega anterior)
+     | ------------------------------------------------------------------ */
+
     /**
      * + computeRotationRate(totalSold, periodDays) : float
-     *
-     * rotación = unidades_vendidas / días_del_período
-     *
-     * Criterio de Aceptación HU-10: computeRotationRate(p) = total_sold /
-     * período_días, sobre el rango analizado por DSSAnalyzer.
      */
     public function computeRotationRate(int $totalSold, int $periodDays): float
     {
@@ -56,11 +66,6 @@ class DSSAnalyzer
 
     /**
      * + computeMarginRate(totalRevenue, totalCost) : float
-     *
-     * margen = (ingresos - costos) / ingresos
-     *
-     * Criterio de Aceptación HU-10: evita división por cero cuando
-     * total_revenue = 0 (producto activo sin ventas en el período).
      */
     public function computeMarginRate(float $totalRevenue, float $totalCost): float
     {
@@ -72,14 +77,10 @@ class DSSAnalyzer
     }
 
     /**
-     * QUERY 3 (Diagrama de Secuencia): agrega sale_details + sales por
-     * producto dentro del rango [start, end] y calcula rotación y
-     * margen para cada repuesto ACTIVO del catálogo.
-     *
-     * Los productos activos sin ventas en el período también se
-     * incluyen, con total_sold = 0 y margin_rate = 0, para que el
-     * 100% del catálogo quede cubierto (requisito consumido luego por
-     * HU-11).
+     * QUERY 3: agrega sale_details + sales por producto en [start, end]
+     * para el catálogo de productos activos. Incluye productos sin
+     * ventas en el período (total_sold = 0) para que classifyProduct()
+     * pueda cubrir el 100% del catálogo (HU-11).
      *
      * @return Collection<int, array{
      *   product_id:int, sku:string, name:string, total_sold:int,
@@ -124,6 +125,88 @@ class DSSAnalyzer
                     'margin_rate' => $this->computeMarginRate($totalRevenue, $totalCost),
                 ];
             });
+    }
+
+    /* ------------------------------------------------------------------
+     | HU-11: Clasificación matricial Estrella / Hueso
+     | ------------------------------------------------------------------ */
+
+    /**
+     * + classifyProduct(rotationRate, marginRate) : string
+     *
+     * Criterio de Aceptación HU-11:
+     *  - ESTRELLA cuando rotación ≥ θ y margen ≥ θ.
+     *  - HUESO cuando ambas son menores al umbral.
+     *  - VACA / INTERROGANTE cubren los cuadrantes mixtos (matriz BCG
+     *    clásica: alta rotación+bajo margen = "vaca lechera"; baja
+     *    rotación+alto margen = "interrogante").
+     */
+    public function classifyProduct(float $rotationRate, float $marginRate): string
+    {
+        $highRotation = $rotationRate >= $this->rotationThreshold;
+        $highMargin = $marginRate >= $this->marginThreshold;
+
+        return match (true) {
+            $highRotation && $highMargin => self::ESTRELLA,
+            $highRotation && ! $highMargin => self::VACA,
+            ! $highRotation && $highMargin => self::INTERROGANTE,
+            default => self::HUESO,
+        };
+    }
+
+    /**
+     * + buildStarHusoMatrix(start, end) : array
+     *
+     * Criterio de Aceptación HU-11:
+     *  - Clasifica el 100% del catálogo activo en los cuatro cuadrantes.
+     *  - Retorna top_star[5] y critical_huso[5].
+     *
+     * top_star: los ESTRELLA con mejor combinación rotación+margen
+     * (mayor score = mejor desempeño, para priorizar reposición).
+     *
+     * critical_huso: los HUESO con peor combinación rotación+margen
+     * (menor score = más urgente evaluar baja o liquidación), que es
+     * el sentido de negocio de "críticos" en el objetivo del proyecto.
+     */
+    public function buildStarHusoMatrix(Carbon $start, Carbon $end): array
+    {
+        $stats = $this->getProductStats($start, $end)->map(function (array $row) {
+            $row['quadrant'] = $this->classifyProduct($row['rotation_rate'], $row['margin_rate']);
+
+            return $row;
+        });
+
+        $quadrants = [
+            self::ESTRELLA => [],
+            self::VACA => [],
+            self::INTERROGANTE => [],
+            self::HUESO => [],
+        ];
+
+        foreach ($stats as $row) {
+            $quadrants[$row['quadrant']][] = $row;
+        }
+
+        $score = fn (array $r) => $r['rotation_rate'] + $r['margin_rate'];
+
+        $topStar = collect($quadrants[self::ESTRELLA])
+            ->sortByDesc($score)
+            ->take($this->rankingSize)
+            ->values()
+            ->all();
+
+        $criticalHuso = collect($quadrants[self::HUESO])
+            ->sortBy($score)
+            ->take($this->rankingSize)
+            ->values()
+            ->all();
+
+        return [
+            'quadrants' => $quadrants,
+            'top_star' => $topStar,
+            'critical_huso' => $criticalHuso,
+            'total_classified' => $stats->count(),
+        ];
     }
 
     public function getRotationThreshold(): float
